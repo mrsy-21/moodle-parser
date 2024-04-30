@@ -294,7 +294,6 @@ class Parser:
 if __name__ == '__main__':
     parser = Parser("https://exam.nuwm.edu.ua/login/index.php")
     parser.run()
-    print("Successful")
-    input("Press any key for exit!")
+    
     
 

@@ -40,3 +40,4 @@ cur.close()
 connection.close()
 
 print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Data Base create completed!")
+input("Press any key for exit!")
