@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import time
 import os
@@ -37,6 +38,8 @@ class Parser:
         'DNT': '1',
         'Sec-GPC': '1',}
 
+    logging.basicConfig(filename='parser.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', encoding='utf-8')
+
     def __init__(self, login_url: str) -> None:
         """
         Constructor of the Parser class
@@ -47,9 +50,11 @@ class Parser:
         self.browser: str = input("Enter name your browser(For example: Chrome, Firefox, Edge, Safari) : ").title().strip()
         if self.browser not in browsers:
             print(f"[{colors.Colors.RED}Fail{colors.Colors.RESET}] Can't get driver. Please download webdriver. Some of this: Chrome, Firefox, Edge, Safari")
+            logging.error("[ FAIL ] Can't get driver.")
             input("Press any key for exit!")
             sys.exit()
         self.driver: webdriver = self.__set_driver()
+        logging.info(f"[ OK ] Driver {self.browser.title()} initialized successfully")
         self.courses_name: List[str] = []
 
     def __set_driver(self):
@@ -84,8 +89,10 @@ class Parser:
             # Save cookie
             session_cookie: str = f"MoodleSession={self.driver.get_cookie('MoodleSession')['value']}"
             self.headers_dict["Cookie"] = session_cookie
-        except NoSuchElementException:
+            logging.info(f"[ OK ] Authorization was successful.")
+        except NoSuchElementException as e:
             print(f"[{colors.Colors.RED}Fail{colors.Colors.RESET}] Failed to find element. Check the URL or element selector.")
+            logging.error(f"[ FAIL ] Failed to find element (__login). More info: {e}")
 
     def __extract_course_links(self) -> None:
         """Extract links to courses"""
@@ -99,8 +106,10 @@ class Parser:
                 set([i.get("href") for i in list(set(links)) if "?id=" in i.get("href")]))
             with open('course_urls.json', 'w', encoding='utf-8') as file:
                 json.dump(links_data, file, ensure_ascii=False, indent=4)
-        except NoSuchElementException:
+            logging.info(f"[ OK ] Course link parsing was successful.")
+        except NoSuchElementException as e:
             print(f"[{colors.Colors.RED}Fail{colors.Colors.RESET}] Failed to find element. Check the URL or element selector")
+            logging.error(f"[ FAIL ] Failed to find element (__extract_course_links). More info: {e}")
 
     def __extract_assessment_journal(self, course_url: str) -> None:
         """
@@ -114,8 +123,6 @@ class Parser:
         soup: BeautifulSoup = BeautifulSoup(self.driver.page_source, 'html.parser')
         course_name: str = soup.find('h1').text
         headers: ResultSet = soup.find_all('th', class_=lambda value: value and value.startswith('header column-'))
-        
-        print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Extract assessment journal {course_name} successful")
 
         headers_data: List[str] = []
         for header in headers:
@@ -141,6 +148,8 @@ class Parser:
 
         df.to_excel(f"{folder_path}/{course_name.strip().replace(' ', '-')}"
                     f"-journal.xlsx", index=False)
+        print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Extract assessment journal {course_name} successful")
+        logging.info(f"[ OK ] Extract assessment journal {course_name} successfully.")
 
     def __extract_students_list(self) -> None:
         """Extract students from a course"""
@@ -148,8 +157,6 @@ class Parser:
             (By.LINK_TEXT, "Учасники"))).click()
         soup: BeautifulSoup = BeautifulSoup(self.driver.page_source, 'html.parser')
         course_name: str = soup.find('h1').text
-        
-        print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Extract students list from {course_name} successful\n")
 
         students: List[List[str]] = []
         for i in range(2, 6):
@@ -174,7 +181,8 @@ class Parser:
                     By.XPATH, f"//a[@class='page-link']/span[text()='{i}']")
                 next_page.click()
                 time.sleep(0.5)
-            except NoSuchElementException:
+            except NoSuchElementException as e:
+                logging.error(f"[ FAIL ] Page not found. More info: {e}")
                 break
 
         folder_path: str = 'list-of-students-on-courses'
@@ -184,6 +192,8 @@ class Parser:
         with open(f'{folder_path}/{course_name.replace(' ', '-')}'
                   f'-students-list.json', 'w', encoding='utf-8') as file:
             json.dump(students, file, ensure_ascii=False, indent=4)
+        print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Extract students list from {course_name} successful\n")
+        logging.info(f"[ OK ] Extract students list from {course_name} successful")
 
     def __extract_and_save_course_links(self) -> None:
         """Extract and save course links."""
@@ -212,6 +222,7 @@ class Parser:
         :param folder_path_courses: The path to the directory containing links to course files
         """
         print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Start process download files ...")
+        logging.info(f"[ START PROCCESS ] Start process download files ...")
 
         with grequests.Session() as session:
             session.headers.update(self.headers_dict)
@@ -244,6 +255,7 @@ class Parser:
                                 for chunk in response.iter_content(chunk_size=8192):
                                     if chunk:
                                         file.write(chunk)
+                            logging.info(f"Downloaded file: {link_text.strip()}.{file_name.split('.')[-1]}")
                         elif 'folder' in response.url:
                             self.driver.get(response.url)
                             soup: BeautifulSoup = BeautifulSoup(self.driver.page_source, 'html.parser')
@@ -265,9 +277,11 @@ class Parser:
                                             for chunk in response_for_folder.iter_content(chunk_size=8192):
                                                 if chunk:
                                                     file.write(chunk)
+                                    logging.info(f"Downloaded file: {link_text_for_folder.strip()}.{file_name_for_folder.split('.')[-1]}")
                     else:
                         continue
         print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Files uploaded successfully")
+        logging.info(f"[ OK ] Files uploaded successfully.")
 
     def run(self) -> None:
         """
