@@ -151,21 +151,17 @@ class Parser:
         print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Extract assessment journal {course_name} successful")
         logging.info(f"[ OK ] Extract assessment journal {course_name} successfully.")
 
-    def __extract_students_list(self) -> None:
-        """Extract students from a course"""
-        WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable(
-            (By.LINK_TEXT, "Учасники"))).click()
+    def __extract_students_list_to_excel(self) -> None:
+        """Extract students from a course and save to Excel."""
+        WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.LINK_TEXT, "Учасники"))).click()
         soup: BeautifulSoup = BeautifulSoup(self.driver.page_source, 'html.parser')
         course_name: str = soup.find('h1').text
 
         students: List[List[str]] = []
         for i in range(2, 6):
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//tr[starts-with(@id, 'user-index-participants-')]")))
+            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//tr[starts-with(@id, 'user-index-participants-')]")))
             soup: BeautifulSoup = BeautifulSoup(self.driver.page_source, 'html.parser')
-            tr_student_rows: ResultSet = soup.find_all('tr', id=lambda
-                value: value and value.startswith('user-index-participants-'))
+            tr_student_rows: ResultSet = soup.find_all('tr', id=lambda value: value and value.startswith('user-index-participants-'))
             
             for row in tr_student_rows:
                 td_data_elements: ResultSet = row.find_all('td')
@@ -177,8 +173,7 @@ class Parser:
                     students.append(data) 
 
             try:
-                next_page: WebElement = self.driver.find_element(
-                    By.XPATH, f"//a[@class='page-link']/span[text()='{i}']")
+                next_page: WebElement = self.driver.find_element(By.XPATH, f"//a[@class='page-link']/span[text()='{i}']")
                 next_page.click()
                 time.sleep(0.5)
             except NoSuchElementException as e:
@@ -189,11 +184,11 @@ class Parser:
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        with open(f'{folder_path}/{course_name.replace(' ', '-')}'
-                  f'-students-list.json', 'w', encoding='utf-8') as file:
-            json.dump(students, file, ensure_ascii=False, indent=4)
+        df = pd.DataFrame(students, columns=["Student Name", "Column 2", "Column 3", "Column 4"])  
+        df.to_excel(f"{folder_path}/{course_name.strip().replace(' ', '-')}-students-list.xlsx", index=False)
         print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Extract students list from {course_name} successful\n")
         logging.info(f"[ OK ] Extract students list from {course_name} successful")
+
 
     def __extract_and_save_course_links(self) -> None:
         """Extract and save course links."""
@@ -283,6 +278,7 @@ class Parser:
         print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Files uploaded successfully")
         logging.info(f"[ OK ] Files uploaded successfully.")
 
+
     def run(self) -> None:
         """
         The function to execute all methods of a class
@@ -295,7 +291,7 @@ class Parser:
         
         for link in list_links:
             self.__extract_assessment_journal(link)
-            self.__extract_students_list()
+            self.__extract_students_list_to_excel()
             self.__extract_and_save_course_links()
 
         with open('courses_name.json', 'w', encoding='utf-8') as file:
