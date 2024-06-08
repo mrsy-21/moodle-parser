@@ -2,3 +2,4 @@ pandas
 grequests
 bs4
 selenium
+pyinstaller
