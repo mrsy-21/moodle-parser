@@ -3,6 +3,7 @@ import os
 import json
 from typing import List
 import colors
+import shutil
 
 print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Create Data Base...")
 
@@ -38,6 +39,12 @@ connection.commit()
 
 cur.close()
 connection.close()
+
+files_to_delete = ["course_urls.json", "courses_name.json"]
+for file in files_to_delete:
+    os.remove(file)
+
+shutil.rmtree("source-links-on-course")
 
 print(f"[{colors.Colors.GREEN}OK{colors.Colors.RESET}] Data Base create completed!")
 input("Press any key for exit!")
