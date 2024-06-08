@@ -1,5 +1,3 @@
-logging
-urllib
 pandas
 grequests
 bs4
