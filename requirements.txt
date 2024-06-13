@@ -3,3 +3,4 @@ grequests
 bs4
 selenium
 pyinstaller
+openpyxl
